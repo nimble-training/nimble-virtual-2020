@@ -23,26 +23,29 @@ Please see [this document](https://docs.google.com/document/d/1hhm6Eco0KevM30aDG
 
 Zoom recordings will be available here (UNDER CONSTRUCTION).
 
-## Schedule (more exact times are in preparation)
+## Schedule
+
+All times are California time. If we need to modify the start times of
+units, we'll try to announce in advance on the Slack #general channel.
 
 Day 1 (Wednesday):
 
-1. Introduction to NIMBLE: Basic concepts and workflows
-2. Working with NIMBLE models and converting from WinBUGS/JAGS
-3. Comparing and customizing MCMC methods in NIMBLE
-4. Strategies for improving MCMC
+1. (9 am - 9:45 am) Introduction to NIMBLE: Basic concepts and workflows
+2. (10 am - 11 am) Working with NIMBLE models and converting from WinBUGS/JAGS
+3. (11:30 am - 12:45 pm) Comparing and customizing MCMC methods in NIMBLE
+4. (1 pm - 2 pm) Strategies for improving MCMC
 
 Day 2 (Thursday):
 
-5. Writing your own functions and distributions 
-6. Writing your own MCMC samplers 
-7. Spatial modeling (part 1)
+5. (9 am - 10 am) Writing your own functions and distributions 
+6. (10:15 am - 11:45 am) Writing your own MCMC samplers 
+7. (12:15 pm - 2 pm with a 15 minute break) Spatial modeling (part 1)
 
 Day 3 (Friday):
 
-7. Spatial modeling (part 2)
-8. Model selection and Bayesian nonparametrics
-9. Special topics breakouts
+7. (9 am - 9:30 am) Spatial modeling (part 2)
+8. (9:45 am - 11:30 am) Model selection and Bayesian nonparametrics
+9. (12 noon - 2 pm) Special topics breakouts
    - (a) Ecological models
    - (b) Sequential Monte Carlo and maximum likelihood methods
 
