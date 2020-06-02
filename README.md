@@ -46,6 +46,13 @@ Day 3 (Friday):
     a. Ecological models
     b. Sequential Monte Carlo and maximum likelihood methods
 
+## Help with NIMBLE
+
+Our user manual is [here](https://r-nimble.org/html_manual/cha-welcome-nimble.html).
+
+We have a new 'cheatsheet' [here](https://r-nimble.org/documentation).
+(If you have feedback, please let us know during the workshop or by email to nimble.stats@gmail.com)
+
 ## Installing NIMBLE
 
 NIMBLE is an R package on CRAN, so in general it will be straightforward to install as with any R package, but you do need a compiler and related tools on your system.  

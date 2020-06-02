@@ -40,10 +40,11 @@ Some strategies for improving MCMC
     - Center covariates [already seen]
     - Centered versus non-centered random effects parameterization
     - Rotated coordinates to reduce posterior correlation [already seen; more here]
+ - Rewrite the model. E.g.,
+    - Rewrite the model to reduce dependencies 
+    - Vectorize declarations to improve computational efficiency
+    - Marginalize to remove parameters 
  - (Advanced) Write new samplers that take advantage of particular model structures [tomorrow]
- - Rewrite the model to reduce dependencies 
- - Vectorize declarations to improve computational efficiency
- - Marginalize to remove parameters 
 
 # Load the E. cervi example for later:
 
@@ -52,18 +53,18 @@ source(file.path("..", "examples", "DeerEcervi", "load_DeerEcervi.R"),
        chdir = TRUE)
 ```
 
-# Sampler choices and centering covariates or random effects  (1)
+# Sampler choices 
 
 Sampler choices:
 
+- Sampling standard deviations on a log scale can help, especially when there is posterior support near 0.
+- Slice sampling can help mix a parameter at some computational cost.
 - Blocking can help when parameters are correlated *given other parameters*.
     - If parameters are *marginally correlated* but *conditionally independent*, blocking will not help.
     - This occurs if parameters are marginally correlated only because they both depend on something else.
-- Slice sampling can help mix a parameter at some computational cost.
-- Sampling standard deviations on a log scale can help, especially when there is posterior support near 0.
 - Model-specific understanding can yield good sampling strategies.
 
-# Sampler choices and centering covariates or random effects (2)
+# Centering covariates or random effects
 
 Centering refers to two issues:
 
@@ -74,8 +75,8 @@ Centering refers to two issues:
     - Centering $x_i$ around its mean removes the posterior correlation between $\beta_0$ and $\beta_1$.
     - In our example, we centered `Length`, but not separately for each sex.
     
-- Random effects with a mean of zero (non-centered) versus centered around a mean.
-    - E.g., `farm_effect ~ N(0, sd)` vs. `farm.effect ~ N(mean, sd)`.
+- Random effects with a mean of zero (non-centered parameterization) versus centered around a mean (centered parameterization).
+    - E.g., `farm_effect ~ N(0, sd)` vs. `farm_effect ~ N(mean, sd)`.
     - Theory shows either parameterization can be better, depending on the model and data, but with reasonable amount of data, centered is often better.
     
 # Back to the E. cervi MCMC
@@ -84,10 +85,12 @@ We'll explore centering a covariate and the centered random effects parameteriza
 
 Four sets of model/MCMC configuration:
 
- - Original setting from last unit -- centered length covariate
- - Centering the random effects (still centered length covariate): "ctrRE"
- - Uncentered length covariate: "uncLen"
- - Uncentered length covariate and block intercept/slope pairs: "block"
+ 1. Original setting from last unit -- centered length covariate
+ 2. Center the random effects (still centering length covariate): "ctrRE"
+ 3. Uncentered length covariate: "uncLen"
+ 4. Uncentered length covariate and block intercept/slope pairs: "block"
+
+# 1.) E. cervi original MCMC 
 
 Let's take a deeper look at the mixing of our basic MCMC for the E. cervi example (where the 'length' variable is centered).
 
@@ -122,7 +125,7 @@ Why?
       farm_effect[ farm_ids[i] ]
 ``` 
 
-# Solution: center the random effects
+# 2) Center the random effects
 
 Solution: center the random effects
 
@@ -178,7 +181,7 @@ ts.plot(DEsamplesCtrRE[ , 'length_coef[1]'], main = 'length slope 1')
 
 So that works pretty well.
 
-# Back to E. cervi, but without centering the covariate
+# 3) Without centering the covariate
 
 Let's consider the original model, but without centering the covariate.
 
@@ -211,7 +214,7 @@ ts.plot(DEsamplesUncLen[ , 'length_coef[1]'], main = 'length slope 1')
 
 So here the main issue is the correlation of the {intercept,slope} pairs.
 
-# Blocking
+# 4) Blocking
 
 The standard answer for that problem is to block the parameters. 
 
@@ -249,7 +252,7 @@ So the blocking helps a lot, though the farm effects show some oscillations. (A 
 
 # Full comparison, accounting for sampling time
 
-We'll compare the uncentered approaches as in the previous module, using `compareMCMCs`. Without some additional work, we can't compare to the centered random effects approach because the parameters are not identical (note we added `mu`).
+Traceplots and other diagnostics are useful for understanding but for a final decision between approaches we need to account for sampling time. 
 
 ### Make `nimbleMCMCdefs`
 
@@ -282,7 +285,7 @@ nimbleMCMCdefs = list(
 )
 ```
 
-### Call `compareMCMCs` for nimble cases (centered and uncentered)
+### Call `compareMCMCs` for the various NIMBLE cases
 
 ```{r, eval = (has_compareMCMCs&doComparisons)}
 mcmcResults_nimble_ctrRE <- compareMCMCs(
@@ -318,7 +321,7 @@ mcmcResults_jags_uncLen <- list()
 ```
 
 ```{r, eval=(has_rjags&doComparisons)}
-mcmcResults_jags_uncenLen <- compareMCMCs(
+mcmcResults_jags_uncLen <- compareMCMCs(
   modelInfo = list(code = DEcode_jags, # JAGS-compatible
                    data = DEdata,
                    constants = DEconstants_uncLen, # centered
@@ -356,7 +359,7 @@ make_MCMC_comparison_pages(mcmcResults_uncLen, modelName = "deer_ecervi_uncLen_r
 
 Results that come with these slides are [here for uncentered length covariate](orig_deer_ecervi_uncLen_results.html) and [here for the centered random effects (and centered length covariate)](orig_deer_ecervi_ctrRE_results.html).
 
-Results if you run the code yourself will be [here for uncentered length covariate](deer_ecervie_uncLen_results.html) and [here for the centered random effects (and centered length covariate)](deer_ecervie_ctrRE_results.html).
+Results if you run the code yourself will be [here for uncentered length covariate](deer_ecervi_uncLen_results.html) and [here for the centered random effects (and centered length covariate)](deer_ecervi_ctrRE_results.html).
 
 
 # Think like a graph: reducing dependencies
@@ -585,10 +588,11 @@ assign('dnormmix2', dnormmix2, .GlobalEnv)
 rnormmix2 <- nimbleFunction(
   run = function(n = integer(0), prob = double(0), 
                  mean = double(1), sd = double(1)) {
-  # dummy code    
+  # warning: dummy code    
   returnType(double(0))
   return(0)
 })
+
 assign('rnormmix2', rnormmix2, .GlobalEnv)
 ```
 
@@ -632,8 +636,8 @@ We can just create, compile, and use the model.
 set.seed(1)
 modelFlexMarg <- nimbleModel(DEcodeFlexMarg, data = DEdata, 
                      constants = DEconstants, 
-                     inits = c(DEinits_vals, pi = runif(1), 
-                               mu = rnorm(2), sigma = rep(1, 2)))
+                     inits = c(DEinits_vals, list(pi = runif(1), 
+                               mu = rnorm(2), sigma = rep(1, 2))))
 
 modelFlexMarg$calculate('farm_effect')
 cModelFlexMarg <- compileNimble(modelFlexMarg)
