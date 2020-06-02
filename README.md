@@ -43,9 +43,8 @@ Day 3 (Friday):
  7. Spatial modeling (part 2)
  8. Model selection and Bayesian nonparametrics
  9. Special topics breakouts
- 
-     a. Ecological models
-     b. Sequential Monte Carlo and maximum likelihood methods
+    a. Ecological models
+    b. Sequential Monte Carlo and maximum likelihood methods
 
 ## Help with NIMBLE
 
