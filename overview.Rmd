@@ -54,7 +54,7 @@ A few additional thoughts on my pedagogical philosophy here:
 
 We'll present most of the material from within RStudio, using R Markdown documents with embedded R code. R Markdown is an extension to the Markdown markup language that makes it easy to write HTML in a simple plain text format.  This allows us to both run the R/NIMBLE code directly as well as compile on-the-fly to an HTML file that can be used for presentation. All files will be available on [Github](https://github.com/nimble-training/nimble-virtual-2020).  
 
-Note: The files named *foo_slides.html* have individual slides, while the files named *foo.html* have the same content but all on one page.
+Note: The files named *foo.html* have individual slides, while the files named *foo_alt.html* have the same content but all on one page.
 
 Warning: in some cases the processing of the R code in the R Markdown is screwy and the slides have error messages that do not occur if you just run the code directly in R or RStudio. 
 
