@@ -1,0 +1,278 @@
+---
+title: "Sequential Monte Carlo and related topics"
+subtitle: "NIMBLE 2020 Virtual Workshop"
+author: "NIMBLE Development Team"
+date: "June 2020"
+output:
+  slidy_presentation: default
+  beamer_presentation: default
+---
+<style>
+slides > slide {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+</style>
+
+```{r chunksetup, include=FALSE} 
+library(nimble)
+```
+
+# Sequential Monte Carlo
+
+FIXME: update all code
+
+Sequential Monte Carlo is a family of algorithms for iteratively sampling from a posterior distribution generally in state-space style models:
+
+$$ y_t \sim g_t(y_t | x_t, \theta)$$
+$$ x_t \sim f_t(x_t | x_{t-1}, \theta) $$ 
+
+Some goals in analyzing such models include:
+
+ - filtering (online estimation): determining $p(x_T | y_{1:T}, \theta)$
+ - smoothing: determining the (conditional) posterior $p(x_{1:T} | y_{1:T}, \theta)$
+ - parameter estimation: determining $p(\theta | y_{1:T})$ 
+ - likelihood calculation: determining $p(y_{1:T} | \theta)$
+
+Parameter estimation is generally a hard problem in this context, with ongoing research.
+
+# Some SMC methods
+
+Some of the methods in the family of SMC and related algorithms include:
+
+ - bootstrap filter
+ - auxiliary particle filter
+ - Liu and West filter and iterated filtering 2
+ - particle MCMC
+ - ensemble Kalman filter
+
+This is just a partial list, focused on methods included in NIMBLE.
+
+# Particle filtering: basic ideas
+
+The basic idea is to approximate the filtering distribution using a sample. We start with an initial sample (not conditioned on the data) and then propagate the sample forward in time, reweighting each element of the sample based on how well it matches the model density at time t (i.e., the prior for $x_t$ and likelihood for $y_t$), and then sampling the new set of particles based on the weights. 
+
+This treats $\theta$ as known, so it does not appear in the notation.
+
+Here's pseudo-code for the bootstrap filter, where
+
+   - $q$ is a proposal distribution that propagates the sample forward in time
+   - $w_t$ and $\pi_t$ are (unnormalized) weights and (normalized) weights
+
+<center><img src="boot_algo.png"></center>
+
+
+
+# Particle filtering: basic ideas (2)
+
+Graphically, one might think of it this way:
+
+<center><img src="pf.png"></center>
+
+# Improving particle filtering
+
+Two key issues arise in these algorithms:
+
+ - How to find a good $q(\cdot)$ proposal function so that the propagated particles have high model density given the next observation.
+ - How to avoid particle degeneracy, where one or a few particles are the only 'good' particles and all the sample weight concentrates on those.
+
+A wide variety of methods have been proposed to address these issues. 
+
+# Particle MCMC
+
+Note that at each step, one can get a Monte Carlo estimate of $p(y_t|y_{1:t-1}, \theta)$, so one can multiply to estimate $p(y_{1:T}|\theta)$.
+
+Recall that for MCMC,
+
+   - High-dimensional latent process values in non-conjugate models often result in bad mixing.
+   - Ideally, we'd like to integrate over $x_{1:T}$ and do MCMC only on hyperparameters, $\theta$.
+   - SMC algorithms allow us to estimate the marginal likelihood so could be embedded within MCMC for the hyperparameters.
+
+# Stochastic volatility example
+
+Here's a common SMC example, following Pitt and Shephard (1999). The idea is that financial time series often have time-varying variability that is of interest to financial folks.
+
+Let $r_t$ be the exchange rate at time $t$ and $y_t$ be 100 times the daily log return of the exchange rate, $y_t = 100 (\log(r_t) - \log(r_{t-1}))$. A standard stochastic volatility model is
+
+$$ y_t = \epsilon_t \beta \exp\left(\frac{x_t}{2}\right), $$
+$$ \epsilon_t \sim N(0,1)$$
+$$ x_t = \phi x_{t-1} + \nu_t$$
+$$ \nu_t \sim N(0, \sigma^2) $$
+
+Here $\beta$ is the constant volatility while $x_t$ is the latent evolving volatility. 
+
+For our basic SMC implementation we'll take $\beta$, $\sigma^2$, and $\phi$ to be known values, but we'll do inference on them via particle MCMC in the next module.
+
+# Stochastic volatility BUGS code
+
+```{r, sv-code}
+stochVolCode <- nimbleCode({
+  x[1] ~ dnorm(phi * x0, sd = sigma)
+  y[1] ~ dnorm(0, var = betaSquared * exp(x[1]))
+  for(t in 2:T){
+        ## time-evolving volatility
+        x[t] ~ dnorm(phi * x[t-1], sd = sigma)
+        ## observations
+        y[t] ~ dnorm(0, var = betaSquared * exp(x[t]))
+  }
+  x0 ~ dnorm(1, sd = sigma)
+  phi <- 2 * phiStar - 1
+  phiStar ~ dbeta(18, 1)
+  sigma ~ T(dt(mu = 0, sigma = 1, df = 1), 0, )
+  ## baseline volatility
+  betaSquared <- beta^2
+  beta ~ T(dt(mu = 0, sigma = 1, df = 1), 0, )
+})
+```
+
+# Stochastic volatility filtering
+
+Now let's create the model and apply and run a bootstrap filter.
+
+```{r, sv-model}
+library("stochvol")
+data("exrates")
+y <- logret(exrates$USD[exrates$date > '2010-01-01'], demean = TRUE)
+TT <- length(y)
+
+stochVolModel <- nimbleModel(code = stochVolCode,
+   constants = list(T = TT), data = list(y = y),
+   inits = list(beta = .5992, phi = .9702,
+   sigma = .178, x0 = 0))
+CstochVolModel <- compileNimble(stochVolModel)
+```
+
+```{r, sv-filter}
+svBootFilter <- buildBootstrapFilter(stochVolModel, nodes = 'x',
+                       control = list(saveAll = TRUE, thresh = 1.0))
+cSvBootFilter <- compileNimble(svBootFilter, project = stochVolModel)
+cSvBootFilter$run(10000)
+samples <- as.matrix(cSvBootFilter$mvEWSamples) ## equally-weighted samples from filtering distribution
+```
+
+# Stochastic volatility results
+
+Here's the estimated volatility based on the filtering distribution, so not the full posterior estimate. There are algorithms that produce the smoothing distribution, though the one implemented in NIMBLE for the bootstrap filter is a basic one. 
+
+```{r, sv-results, fig.width=10, fig.height=6, fig.cap=''}
+par(mfrow = c(1,2))
+ts.plot(y, main = 'observations')
+mn <- apply(samples, 2, mean)
+qs <- apply(samples, 2, quantile, c(.025, .975))
+ts.plot(mn, ylim = range(qs), main = 'estimated volatility')
+lines(1:TT, qs[1, ], lty = 2)
+lines(1:TT, qs[2, ], lty = 2)
+```
+
+
+# SMC algorithm implementation
+
+Our SMC algorithms are implemented using nimbleFunctions (of course!).
+
+Each time step has its own nimbleFunction, because we need fully model-generic calculations that can't assume any particular structure for a given time step (and at the moment NIMBLE can't easily store model dependencies for multiple nodes in a single data strucutre).
+
+We'll look directly at the code in [`filtering_bootstrap.R`](filtering_bootstrap.R).
+
+The overall filtering nimbleFunction simply iterates through each individual time step function and builds up the overall likelihood from the time step-specific pieces.
+
+
+# Lists of nimbleFunctions
+
+The bootstrap filter created a list of nimbleFunctions, one for each time step. Here's what the code in the overall bootstrap filter nimbleFunction setup code looks like:
+
+```{r, nimbleFunctionLists, eval=FALSE}
+    bootStepFunctions <- nimbleFunctionList(bootStepVirtual)
+    for(iNode in seq_along(nodes)){
+       bootStepFunctions[[iNode]] <- bootFStep(model, mvEWSamples, mvWSamples,
+                                              nodes, iNode, names, saveAll,
+                                              smoothing, resamplingMethod,
+                                              silent) 
+    }
+```
+
+The key steps are:
+
+   - define a 'virtual' nimbleFunction that is a *base class* (basically a skeleton function)
+   - define a *nimbleFunctionList* based on that virtual nimbleFunction
+   - create each individual nimbleFunction by calling a nimbleFunction generator that inherits from the virtual nimbleFunction
+
+Then one can call the run function or other run-time methods of the elements of the list of nimbleFunctions in the run code of the overall nimbleFunction.
+
+Similarly, an MCMC is composed of a list of individual sampler functions (of which we've seen many examples) specialized to nodes of a model.
+
+
+# Particle MCMC
+
+Note that at each step, one can get a Monte Carlo estimate of $p(y_t|y_{1:t-1}, \theta)$, so one can multiply to estimate $p(y_{1:T}|\theta)$.
+
+Recall that for MCMC,
+
+   - High-dimensional latent process values in non-conjugate models often result in bad mixing.
+   - Ideally, we'd like to integrate over $x_{1:T}$ and do MCMC only on hyperparameters, $\theta$.
+   - SMC algorithms allow us to estimate the marginal likelihood so could be embedded within MCMC for the hyperparameters.
+
+# Particle MCMC in NIMBLE
+
+NIMBLE provides scalar and block random-walk Metropolis Hastings based on this approach: "Particle Marginal Metropolis Hastings".
+
+Simply specify 'RW_PF' or 'RW_PF_block' in *addSampler*, indicating the $x_{1:T}$ nodes as part of the control argument.
+
+We'll look directly at the PMCMC code in [`pmcmc_samplers.R`](pmcmc_samplers.R), which is simply the PMCMC samplers extracted from *MCMC_samplers.R* file in the nimble R package.
+
+The setup code creates a filtering algorithm, and then the run code runs it under the proposed hyperparameter values and uses the likelihood approximation in the Metropolis-Hastings acceptance calculation.
+
+
+# Stochastic volatility example revisited
+
+```{r, sv-code}
+```
+
+```{r, sv-model}
+```
+
+# Stochastic volatility, particle MCMC
+
+```{r, sv-pmcmc}
+stochVolConf <- configureMCMC(stochVolModel, nodes = NULL,
+    monitors = c('beta', 'phi', 'sigma' , 'x'))
+stochVolConf$addSampler(target = c('beta', 'phiStar', 'sigma' , 'x0'),
+                               type = 'RW_PF_block', control = list(propCov = .1 * diag(4),
+                               pfType = 'auxiliary', pfControl = list(thresh = 1),
+                               adaptive = TRUE, pfNparticles = 200,
+                               latents = 'x', pfResample = TRUE))
+                               
+stochVolMCMC <- buildMCMC(stochVolConf)
+cMCMC <- compileNimble(stochVolMCMC, project = stochVolModel, resetFunctions = TRUE)
+samples <- runMCMC(cMCMC, niter = 5000)
+```
+
+# Stochastic volatility, particle MCMC results
+
+It looks like the MCMC worked somewhat well.
+
+```{r, sv-pmcmc-results, fig.width=12, fig.height=8, fig.cap=''}
+par(mfrow = c(2, 3))
+hist(samples[ , 'beta'])
+hist(samples[ , 'phi'])
+hist(samples[ , 'sigma'])
+ts.plot(samples[ , 'beta'])
+ts.plot(samples[ , 'phi'])
+ts.plot(samples[ , 'sigma'])
+```
+
+# Maximum likelihood for the stochastic volatility example
+
+We can also consider trying to use maximum likelihood to estimate the (hyper)parameters. 
+
+Given the integration of the volatility process is not possible analytically:
+  - MCEM (use MCMC to approximate the required expectation in the EM algorithm)
+  - IF2 SMC-based approach
+  
+# MCEM 
+
+FIXME: finish
+
+# IF2
+
+FIXME: finish
+
