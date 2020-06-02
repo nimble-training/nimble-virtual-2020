@@ -36,15 +36,16 @@ Day 2 (Thursday):
 
  5. Writing your own functions and distributions 
  6. Writing your own MCMC samplers 
- 7. Spatial modeling (part 1)
+ 7a. Spatial modeling (part 1)
 
 Day 3 (Friday):
 
- 8. Spatial modeling (part 2)
- 9. Model selection and Bayesian nonparametrics
- 10. Special topics breakouts
-    a. Ecological models
-    b. Sequential Monte Carlo and maximum likelihood methods
+ 7b. Spatial modeling (part 2)
+ 8. Model selection and Bayesian nonparametrics
+ 9. Special topics breakouts
+ 
+     a. Ecological models
+     b. Sequential Monte Carlo and maximum likelihood methods
 
 ## Help with NIMBLE
 
