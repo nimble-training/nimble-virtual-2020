@@ -122,6 +122,80 @@ for(j in 1:num_farms)
   }
 ```
 
+# Converting from JAGS/BUGS to NIMBLE
+
+See our [guide online](https://r-nimble.org/quick-guide-for-converting-from-jags-or-bugs-to-nimble).
+
+How NIMBLE extends BUGS
+
+ - Alternative distribution parameterizations (like R) [seen above].
+ - Named parameters (like R) [seen above].
+ - Distinction between `constants` and `data` [seen above].
+ - Vectorized math and linear algebra [more below].
+ - Definition-time if-then-else (multiple model variants from the same code) [more below].
+ - User-defined functions and distributions [later today].
+
+And a limitation of NIMBLE
+ 
+ - NIMBLE is stricter about requiring dimensions for vectors, matrices, and arrays [more below].
+
+# More explicit need to provide dimensions
+
+- Square brackets must always be provided to indicate number of dimensions
+    - If `x` is 2-dimensional, use `x[,] %*% beta[]`, not `x %*% beta`
+    - (This limitation only pertains to model code, not `nimbleFunction` programming, which we will cover later.)
+- Sometimes NIMBLE is not as smart as BUGS/JAGS at determining dimensions.  There are two solutions:
+    - Give dimensions explicity: `x[1:n, 1:m]`, OR
+    - Provide a `dimensions` argument to `nimbleModel`.  
+        - Example: `dimensions = list(x = c(n, m))`.
+
+
+# Be careful about scalar vs. vector vs. matrix vs. array
+
+This will not work:
+```{r eval = FALSE}
+x[1:5] <- (A[1:5, 1:5] %*% b[1:5] + c[1:5])
+```
+
+The problem is that the right-hand-side returns a matrix, so we can't assign it to a vector.
+
+This will work:
+```{r eval = FALSE}
+x[1:5] <- (A[1:5, 1:5] %*% b[1:5] + c[1:5])[,1]
+```
+
+# Definition-time if-then-else
+
+If you wish to define multiple alternative models in one set of code,
+you can use if-then-else statements.  These will be evaluated based on
+variables in the R environment when the model is defined.  For
+example:
+
+```{r eval=FALSE}
+code <- nimbleCode({
+  sigma ~ dunif(0, 10)
+  beta0 ~ dnorm(0, sd = 1000)
+  beta1 ~ dnorm(0, sd = 1000)
+  if(INCLUDE_X2) {
+    beta2 ~ dnorm(0, sd = 1000)
+  } 
+  for(i in 1:10) {
+    if(INCLUDE_X2) {
+      y[i] ~ dnorm(beta0 + beta1 * x1[i] + beta2 * x2[i], sd = sigma)
+    } else {
+      y[i] ~ dnorm(beta0 + beta1 * x1[i], sd = sigma)
+    }
+  }
+})
+
+INCLUDE_X2 <- FALSE
+m1 <- nimbleModel(code)
+INCLUDE_X2 <- TRUE
+m2 <- nimbleModel(code)
+```
+
+m2 has `beta2` while m1 does not.
+
 # Models are graphs
 
 - Scientists in many application domains and many statisticians speak of "hierarchical models".
@@ -167,7 +241,7 @@ model <- nimbleModel(code,
 
 `x` values are neither observations ('data') nor parameters. `x` can also be provided in `constants` (this is generally best, unless you plan to change `x`) or in `data` (for consistency with WinBUGS/JAGS).
 
-# Draw the graph:
+# Draw the graph
 
 This was done with package `igraph`.
 ```{r, linmodel-graph, echo = FALSE}
@@ -316,86 +390,13 @@ Now let's look at the dependency (graph) structure.
 m_light$getDependencies('farm_effect[1]')
 too_many_deps <- m_heavy$getDependencies('farm_effect[1]')
 length(too_many_deps)
-head(too_many_deps)
+head(too_many_deps, n = 30)
 ```
 
-If `farm_ids` (and `sex`) are not known to NIMBLE to be constants, then all the observations could potentially depend on any element of `farm_effects`, `sex_int`, `length_coef`.
+If `farm_ids` (and `sex`) are not known to NIMBLE to be constants, then all the observations could potentially depend on any element of `farm_effect`, `sex_int`, `length_coef`.
 
 Consider what would happen in a Metropolis-Hastings sampler for `farm_effect[1]` in the 'heavy' model.
 
-# Converting from JAGS/BUGS to NIMBLE
-
-See our [guide online](https://r-nimble.org/quick-guide-for-converting-from-jags-or-bugs-to-nimble).
-
-How NIMBLE extends BUGS
-
- - Alternative distribution parameterizations (like R) [seen above].
- - Named parameters (like R) [seen above].
- - Distinction between `constants` and `data` [seen above].
- - Vectorized math and linear algebra [more below].
- - Definition-time if-then-else (multiple model variants from the same code) [more below].
- - User-defined functions and distributions [later today].
-
-And a limitation of NIMBLE
- 
- - NIMBLE is stricter about requiring dimensions for vectors, matrices, and arrays [more below].
-
-# More explicit need to provide dimensions
-
-- Square brackets must always be provided to indicate number of dimensions
-    - If `x` is 2-dimensional, use `x[,] %*% beta[]`, not `x %*% beta`
-    - (This limitation only pertains to model code, not `nimbleFunction` programming, which we will cover later.)
-- Sometimes NIMBLE is not as smart as BUGS/JAGS at determining dimensions.  There are two solutions:
-    - Give dimensions explicity: `x[1:n, 1:m]`, OR
-    - Provide a `dimensions` argument to `nimbleModel`.  
-        - Example: `dimensions = list(x = c(n, m))`.
-
-
-# Be careful about scalar vs. vector vs. matrix vs. array
-
-This will not work:
-```{r eval = FALSE}
-x[1:5] <- (A[1:5, 1:5] %*% b[1:5] + c[1:5])
-```
-
-The problem is that the right-hand-side returns a matrix, so we can't assign it to a vector.
-
-This will work:
-```{r eval = FALSE}
-x[1:5] <- (A[1:5, 1:5] %*% b[1:5] + c[1:5])[,1]
-```
-
-# Definition-time if-then-else
-
-If you wish to define multiple alternative models in one set of code,
-you can use if-then-else statements.  These will be evaluated based on
-variables in the R environment when the model is defined.  For
-example:
-
-```{r eval=FALSE}
-code <- nimbleCode({
-  sigma ~ dunif(0, 10)
-  beta0 ~ dnorm(0, sd = 1000)
-  beta1 ~ dnorm(0, sd = 1000)
-  if(INCLUDE_X2) {
-    beta2 ~ dnorm(0, sd = 1000)
-  } 
-  for(i in 1:10) {
-    if(INCLUDE_X2) {
-      y[i] ~ dnorm(beta0 + beta1 * x1[i] + beta2 * x2[i], sd = sigma)
-    } else {
-      y[i] ~ dnorm(beta0 + beta1 * x1[i], sd = sigma)
-    }
-  }
-})
-
-INCLUDE_X2 <- FALSE
-m1 <- nimbleModel(code)
-INCLUDE_X2 <- TRUE
-m2 <- nimbleModel(code)
-```
-
-m2 has `beta2` while m1 does not.
 
 # Nodes vs. variables
 
@@ -431,7 +432,8 @@ model2 <- nimbleModel(code2,
                                    x = c(0.1, 0.2, 0.3, 0.4)))
 ```
 
-## Look at nodes in the vectorized model:
+## Look at nodes in the vectorized model
+
 ```{r}
 model2$getNodeNames()
 ```

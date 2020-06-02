@@ -23,7 +23,7 @@ if(!has_compareMCMCs)
 has_rjags <- require(rjags)
 if(!has_rjags)
   warning("This Rmd file uses package rjags.  Sections using it will be skipped.")
-doComparisons <- TRUE
+doComparisons <- FALSE
 runExercise <- FALSE
 ```
 
@@ -288,6 +288,8 @@ nimbleMCMCdefs = list(
 ### Call `compareMCMCs` for the various NIMBLE cases
 
 ```{r, eval = (has_compareMCMCs&doComparisons)}
+set.seed(1)
+
 mcmcResults_nimble_ctrRE <- compareMCMCs(
   modelInfo = list(code = DEcodeCtrRE, 
                    data = DEdata,

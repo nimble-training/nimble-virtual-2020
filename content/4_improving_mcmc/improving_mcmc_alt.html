@@ -313,7 +313,7 @@ cmcmc &lt;- compileNimble(mcmc, project = model)</code></pre>
 <pre><code>## |-------------|-------------|-------------|-------------|
 ## |-------------------------------------------------------|</code></pre>
 <pre><code>##    user  system elapsed 
-##   4.083   0.072   4.155</code></pre>
+##   4.018   0.043   4.063</code></pre>
 <pre class="r"><code># change to c(3,5) in live demo
 par(mfrow = c(1,5))
 ts.plot(DEsamples[ , 'farm_sd'], main = 'farm sd')
@@ -393,7 +393,7 @@ cmcmcCtrRE &lt;- compileNimble(mcmcCtrRE, project = modelCtrRE)</code></pre>
 <pre><code>## |-------------|-------------|-------------|-------------|
 ## |-------------------------------------------------------|</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.506   0.044   2.551</code></pre>
+##   2.578   0.016   2.594</code></pre>
 <pre class="r"><code>par(mfrow = c(1,5))
 ts.plot(DEsamplesCtrRE[ , 'farm_sd'], main = 'farm sd')
 ts.plot(DEsamplesCtrRE[ , 'farm_effect[1]'], main = 'farm effect 1')
@@ -443,7 +443,7 @@ cmcmcUncLen &lt;- compileNimble(mcmcUncLen, project = modelUncLen)</code></pre>
 <pre><code>## |-------------|-------------|-------------|-------------|
 ## |-------------------------------------------------------|</code></pre>
 <pre><code>##    user  system elapsed 
-##   3.720   0.100   3.821</code></pre>
+##   3.872   0.044   3.917</code></pre>
 <pre class="r"><code>par(mfrow = c(1,5))
 ts.plot(DEsamplesUncLen[ , 'farm_sd'], main = 'farm sd')
 ts.plot(DEsamplesUncLen[ , 'farm_effect[1]'], main = 'farm effect 1')
@@ -500,7 +500,7 @@ cmcmcBlock &lt;- compileNimble(mcmcBlock, project = modelBlock)</code></pre>
 <pre><code>## |-------------|-------------|-------------|-------------|
 ## |-------------------------------------------------------|</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.681   0.080   2.762</code></pre>
+##   2.662   0.036   2.698</code></pre>
 <pre class="r"><code>par(mfrow = c(1,5))
 ts.plot(DEsamplesBlock[ , 'farm_sd'], main = 'farm sd')
 ts.plot(DEsamplesBlock[ , 'farm_effect[1]'], main = 'farm effect 1')
@@ -544,7 +544,9 @@ ts.plot(DEsamplesBlock[ , 'length_coef[1]'], main = 'length slope 1')</code></pr
 </div>
 <div id="call-comparemcmcs-for-the-various-nimble-cases" class="section level3">
 <h3>Call <code>compareMCMCs</code> for the various NIMBLE cases</h3>
-<pre class="r"><code>mcmcResults_nimble_ctrRE &lt;- compareMCMCs(
+<pre class="r"><code>set.seed(1)
+
+mcmcResults_nimble_ctrRE &lt;- compareMCMCs(
   modelInfo = list(code = DEcodeCtrRE, 
                    data = DEdata,
                    constants = DEconstants,
