@@ -107,3 +107,12 @@ install.packages(c("mcmcplots", "CARBayesdata", "sp", "spdep", "classInt"))
 library(remotes)
 install_github("nimble-dev/compareMCMCs", subdir = "compareMCMCs")
 ```
+
+Windows users will probably need to use this invocation:
+
+```
+library(remotes)
+install_github("nimble-dev/compareMCMCs", subdir = "compareMCMCs", INSTALL_opts = "--no-multiarch")
+```
+
+
