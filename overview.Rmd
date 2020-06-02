@@ -130,7 +130,7 @@ Here are the modules we'll work through for this short course.
   
  - Day 3
  
-    7. (b) [Spatial modeling, part 2](content/spatial_models/7_spatial_models.html)
+    7. (b) [Spatial modeling, part 2](content/7_spatial_models/spatial_models.html)
     8. [Model selection, including Bayesian nonparametrics](content/8_model_selection_bnp/model_selection_bnp.html)
     9. (a) [Ecological modeling](content/9_ecology/ecology.html) 
     9. (b) [Sequential Monte Carlo](content/9_smc/smc.html)
