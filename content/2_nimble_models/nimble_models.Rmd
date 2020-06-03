@@ -456,7 +456,7 @@ Deterministic nodes have their values calculated but contribute 0 to the log pro
 
 ```{r}
 model2$getDependencies('intercept')
-model2$calculate(model$getDependencies('intercept'))
+model2$calculate(model2$getDependencies('intercept'))
 ```
 
 In this case, this is the sum of log probabilities from almost the entire model.

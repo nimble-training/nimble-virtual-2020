@@ -631,7 +631,7 @@ model2 &lt;- nimbleModel(code2,
 <pre class="r"><code>model2$getDependencies('intercept')</code></pre>
 <pre><code>## [1] &quot;intercept&quot;        &quot;predicted.y[1:4]&quot; &quot;y[1]&quot;            
 ## [4] &quot;y[2]&quot;             &quot;y[3]&quot;             &quot;y[4]&quot;</code></pre>
-<pre class="r"><code>model2$calculate(model$getDependencies('intercept'))</code></pre>
+<pre class="r"><code>model2$calculate(model2$getDependencies('intercept'))</code></pre>
 <pre><code>## [1] -12.4612</code></pre>
 <p>In this case, this is the sum of log probabilities from almost the entire model.</p>
 <p>Only the priors for <code>slope</code> and <code>sigma</code> are not included.</p>
