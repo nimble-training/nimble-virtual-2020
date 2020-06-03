@@ -624,38 +624,37 @@ model2 &lt;- nimbleModel(code2,
 </div>
 <div id="log-probability-calculations" class="section level1">
 <h1>Log probability calculations</h1>
-<pre class="r"><code>model$calculate('y[1:4]')</code></pre>
-<pre><code>## [1] -5.267736</code></pre>
+<pre class="r"><code>model2$calculate('y[1:4]')</code></pre>
+<pre><code>## [1] -4.634502</code></pre>
 <p>This is the sum of log probabilities of all stochastic nodes in the calculation.</p>
 <p>Deterministic nodes have their values calculated but contribute 0 to the log probability.</p>
-<pre class="r"><code>model$getDependencies('intercept')</code></pre>
-<pre><code>## [1] &quot;intercept&quot;      &quot;predicted.y[1]&quot; &quot;predicted.y[2]&quot; &quot;predicted.y[3]&quot;
-## [5] &quot;predicted.y[4]&quot; &quot;y[1]&quot;           &quot;y[2]&quot;           &quot;y[3]&quot;          
-## [9] &quot;y[4]&quot;</code></pre>
-<pre class="r"><code>model$calculate(model$getDependencies('intercept'))</code></pre>
-<pre><code>## [1] -13.17997</code></pre>
+<pre class="r"><code>model2$getDependencies('intercept')</code></pre>
+<pre><code>## [1] &quot;intercept&quot;        &quot;predicted.y[1:4]&quot; &quot;y[1]&quot;            
+## [4] &quot;y[2]&quot;             &quot;y[3]&quot;             &quot;y[4]&quot;</code></pre>
+<pre class="r"><code>model2$calculate(model$getDependencies('intercept'))</code></pre>
+<pre><code>## [1] -12.4612</code></pre>
 <p>In this case, this is the sum of log probabilities from almost the entire model.</p>
 <p>Only the priors for <code>slope</code> and <code>sigma</code> are not included.</p>
 </div>
 <div id="simulating-from-the-model" class="section level1">
 <h1>Simulating from the model</h1>
 <p>In this model, there are no random effects. The only stochastic nodes are data or parameters with priors.</p>
-<pre class="r"><code>model$sigma</code></pre>
+<pre class="r"><code>model2$sigma</code></pre>
 <pre><code>## [1] 1</code></pre>
-<pre class="r"><code>model$simulate('sigma')
-model$sigma</code></pre>
+<pre class="r"><code>model2$simulate('sigma')
+model2$sigma</code></pre>
 <pre><code>## [1] 71.76185</code></pre>
 <p>Data values are protected from simulation unless you are sure.</p>
 <p>(The following is not good model-generic programming. See below.)</p>
-<pre class="r"><code>model$y</code></pre>
-<pre><code>## [1]  0.8000000  0.1836433 -0.8356286  1.5952808</code></pre>
-<pre class="r"><code>model$simulate('y') ## Will not over-write data nodes</code></pre>
+<pre class="r"><code>model2$y</code></pre>
+<pre><code>## [1]  0.3295078 -0.8204684  0.4874291  0.7383247</code></pre>
+<pre class="r"><code>model2$simulate('y') ## Will not over-write data nodes</code></pre>
 <pre><code>## NULL</code></pre>
-<pre class="r"><code>model$y</code></pre>
-<pre><code>## [1]  0.8000000  0.1836433 -0.8356286  1.5952808</code></pre>
-<pre class="r"><code>model$simulate('y', includeData = TRUE) ## will over-write data nodes
-model$y</code></pre>
-<pre><code>## [1] 173.08238  55.33688 -56.71838 -81.77799</code></pre>
+<pre class="r"><code>model2$y</code></pre>
+<pre><code>## [1]  0.3295078 -0.8204684  0.4874291  0.7383247</code></pre>
+<pre class="r"><code>model2$simulate('y', includeData = TRUE) ## will over-write data nodes
+model2$y</code></pre>
+<pre><code>## [1] 173.08238  55.33688 -56.77838 -81.77799</code></pre>
 </div>
 <div id="understanding-lifted-nodes" class="section level1">
 <h1>Understanding <em>lifted nodes</em></h1>
@@ -733,12 +732,12 @@ model3$lifted_sqrt_oPsigma2_cP</code></pre>
   logProb
 }</code></pre>
 <p>Notice that this function will work with <em>any</em> model and <em>any</em> set of input nodes.</p>
-<pre class="r"><code>model$y</code></pre>
-<pre><code>## [1] 173.08238  55.33688 -56.71838 -81.77799</code></pre>
-<pre class="r"><code>simulate_downstream(model, 'sigma2')</code></pre>
-<pre><code>## [1] 0</code></pre>
-<pre class="r"><code>model$y</code></pre>
-<pre><code>## [1] 173.08238  55.33688 -56.71838 -81.77799</code></pre>
+<pre class="r"><code>model3$y</code></pre>
+<pre><code>## [1] 4.293956460 1.873363608 8.601895097 0.008932256</code></pre>
+<pre class="r"><code>simulate_downstream(model3, 'sigma2')</code></pre>
+<pre><code>## [1] -6.585268</code></pre>
+<pre class="r"><code>model3$y</code></pre>
+<pre><code>## [1]  1.6522945 -0.1805611 -0.7796443  0.6287284</code></pre>
 <p>In this case, the model doesn’t have much hierarchical structure.</p>
 </div>
 <div id="always-use-graph-structure-in-model-generic-programming" class="section level1">
