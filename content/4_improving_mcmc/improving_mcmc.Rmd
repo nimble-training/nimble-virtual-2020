@@ -23,7 +23,7 @@ if(!has_compareMCMCs)
 has_rjags <- require(rjags)
 if(!has_rjags)
   warning("This Rmd file uses package rjags.  Sections using it will be skipped.")
-doComparisons <- FALSE
+doComparisons <- TRUE
 runExercise <- FALSE
 ```
 
@@ -135,8 +135,8 @@ Secondary solution: have second intercept be an offset for sex 2 only
 
 ```{r}
 DEcodeCtrRE <- nimbleCode({
-  sex_effect[2] ~ dnorm(0, sd = 1000)     # offset for sex 2
-  sex_effect[1] <- 0                      # replaced by 'mu'
+  sex_int[2] ~ dnorm(0, sd = 1000)     # offset for sex 2
+  sex_int[1] <- 0                      # replaced by 'mu'
   for(i in 1:2) {
     # Priors for ntercepts and length coefficients for sex = 1,2
     length_coef[i] ~ dnorm(0, sd = 1000)
@@ -175,7 +175,7 @@ par(mfrow = c(1,5))
 ts.plot(DEsamplesCtrRE[ , 'farm_sd'], main = 'farm sd')
 ts.plot(DEsamplesCtrRE[ , 'farm_effect[1]'], main = 'farm effect 1')
 ts.plot(DEsamplesCtrRE[ , 'mu'], main = 'intercept (random effect mean)')
-ts.plot(DEsamplesCtrRE[ , 'sex_effect[2]'], main = 'sex 2 offset')
+ts.plot(DEsamplesCtrRE[ , 'sex_int[2]'], main = 'sex 2 offset')
 ts.plot(DEsamplesCtrRE[ , 'length_coef[1]'], main = 'length slope 1')
 ```
 
@@ -370,7 +370,7 @@ Consider a basic state-space model.
 
 Observation equation: $y_t \sim f(y_t | x_t)$.  (Parameters are not shown.)
 
-State equation: $x_t \sim g(x_t | x_t-1)$
+State equation: $x_t \sim g(x_t | x_{t-1})$
 
 Two equivalent ways to write state-space models:
 
