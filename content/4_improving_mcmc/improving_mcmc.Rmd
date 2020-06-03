@@ -23,7 +23,7 @@ if(!has_compareMCMCs)
 has_rjags <- require(rjags)
 if(!has_rjags)
   warning("This Rmd file uses package rjags.  Sections using it will be skipped.")
-doComparisons <- TRUE
+doComparisons <- FALSE
 runExercise <- FALSE
 ```
 
