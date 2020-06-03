@@ -447,7 +447,7 @@ In this case, if `x[2]` had a prior and was being sampled in MCMC, it would be i
 # Log probability calculations
 
 ```{r}
-model$calculate('y[1:4]')
+model2$calculate('y[1:4]')
 ```
 
 This is the sum of log probabilities of all stochastic nodes in the calculation.
@@ -455,8 +455,8 @@ This is the sum of log probabilities of all stochastic nodes in the calculation.
 Deterministic nodes have their values calculated but contribute 0 to the log probability.
 
 ```{r}
-model$getDependencies('intercept')
-model$calculate(model$getDependencies('intercept'))
+model2$getDependencies('intercept')
+model2$calculate(model$getDependencies('intercept'))
 ```
 
 In this case, this is the sum of log probabilities from almost the entire model.
@@ -469,9 +469,9 @@ Only the priors for `slope` and `sigma` are not included.
 In this model, there are no random effects.  The only stochastic nodes are data or parameters with priors.
 
 ```{r}
-model$sigma
-model$simulate('sigma')
-model$sigma
+model2$sigma
+model2$simulate('sigma')
+model2$sigma
 ```
 
 Data values are protected from simulation unless you are sure.
@@ -479,11 +479,11 @@ Data values are protected from simulation unless you are sure.
 (The following is not good model-generic programming.  See below.)
 
 ```{r}
-model$y
-model$simulate('y') ## Will not over-write data nodes
-model$y
-model$simulate('y', includeData = TRUE) ## will over-write data nodes
-model$y
+model2$y
+model2$simulate('y') ## Will not over-write data nodes
+model2$y
+model2$simulate('y', includeData = TRUE) ## will over-write data nodes
+model2$y
 ```
 
 # Understanding *lifted nodes*
@@ -552,9 +552,9 @@ Notice that this function will work with *any* model and *any* set of input node
 
 
 ```{r}
-model$y
-simulate_downstream(model, 'sigma2')
-model$y
+model3$y
+simulate_downstream(model3, 'sigma2')
+model3$y
 ```
 
 In this case, the model doesn't have much hierarchical structure.
