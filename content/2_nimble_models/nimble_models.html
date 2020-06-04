@@ -491,7 +491,7 @@ model2 &lt;-<span class="st"> </span><span class="kw">nimbleModel</span>(code2,
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model2<span class="op">$</span><span class="kw">getDependencies</span>(<span class="st">'intercept'</span>)</code></pre></div>
 <pre><code>## [1] &quot;intercept&quot;        &quot;predicted.y[1:4]&quot; &quot;y[1]&quot;            
 ## [4] &quot;y[2]&quot;             &quot;y[3]&quot;             &quot;y[4]&quot;</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model2<span class="op">$</span><span class="kw">calculate</span>(model<span class="op">$</span><span class="kw">getDependencies</span>(<span class="st">'intercept'</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">model2<span class="op">$</span><span class="kw">calculate</span>(model2<span class="op">$</span><span class="kw">getDependencies</span>(<span class="st">'intercept'</span>))</code></pre></div>
 <pre><code>## [1] -12.4612</code></pre>
 <p>In this case, this is the sum of log probabilities from almost the entire model.</p>
 <p>Only the priors for <code>slope</code> and <code>sigma</code> are not included.</p>
