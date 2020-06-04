@@ -16,11 +16,17 @@ slides > slide {
 
 ```{r chunksetup, include=FALSE} 
 library(nimble)
+has_stochvol <- require(stochvol)
+if(!has_stochvol)
+  message("Some examples in this module use the stochvol (stochastic volatility) package.")
 ```
+
+Material here is based on a paper that will appear in Journal of Statistical Software and is current on arXiv:
+
+[*Sequential Monte Carlo methods in the nimble R package* (Michaud et al. 2020)](https://arxiv.org/abs/1703.06206)
 
 # Sequential Monte Carlo
 
-FIXME: update all code
 
 Sequential Monte Carlo is a family of algorithms for iteratively sampling from a posterior distribution generally in state-space style models:
 
@@ -78,6 +84,24 @@ Two key issues arise in these algorithms:
 
 A wide variety of methods have been proposed to address these issues. 
 
+# Bootstrap filter (basic method)
+
+The original particle filter of [Gordon et al. (1993)](https://doi.org/10.1049/ip-f-2.1993.0015) used:
+
+- $q(x_t | x_{t-1}^{(k)}, y_t) = f_t(x_t | x_{t-1}, \theta)$
+- In other words, draw from the stochastic state dynamics, ignoring the data.
+
+# Auxiliary particle filter (improved method)
+
+A fundamental improvement is due to [Pitt and Shephard (1999)](https://www.tandfonline.com/doi/abs/10.1080/01621459.1999.10474153).  They use:
+
+- For each $x_{t-1}$ sample, make initial forward trial by any desired method (simulation from $f_t(x_t | x_{t-1}, \theta)$, mean prediction, or other).
+- Make preliminary weights based on closeness of each trial to data $y_t$.
+- Resample $x_{t-1}$ based on initial trials.
+- Use bootstrap filter (or other) from the resampled $x_{t-1}$.
+- First-stage (trial) and second-stage (bootstrap filter or other) weights are combined.
+- The result should be better choice of state particles at t-1 from which to propagate to states at time t.
+
 # Particle MCMC
 
 Note that at each step, one can get a Monte Carlo estimate of $p(y_t|y_{1:t-1}, \theta)$, so one can multiply to estimate $p(y_{1:T}|\theta)$.
@@ -86,18 +110,28 @@ Recall that for MCMC,
 
    - High-dimensional latent process values in non-conjugate models often result in bad mixing.
    - Ideally, we'd like to integrate over $x_{1:T}$ and do MCMC only on hyperparameters, $\theta$.
-   - SMC algorithms allow us to estimate the marginal likelihood so could be embedded within MCMC for the hyperparameters.
+   - SMC algorithms allow us to estimate the marginal likelihood.
+   - It turns out SMC marginal likelihood estimates can be used within MCMC for the hyperparameters.
+   - The result is "exact approximate".  This means the posterior is sampled exactly correctly even though the marginal likelihood estimates are approximate.
+   - The underlying theory ("pseudo-marginal likelihood") is to view the particle filter as drawing a sample from the smoothing distribution as part of the MCMC, even if that sample is never actually retained.
+   - In practice, a Monte Carlo estimate of the likelihood with correct expected value (which particle filters satisfy) will be valid.
+   
+References:
+
+- PMCMC: [*Particle Markov Chain Monte Carlo Methods.* (Andrieu et al. 2010)](https://doi.org/10.1111/j.1467-9868.2009.00736.x) 
+- Pseudo-marginal likelihoods: [*The Pseudo-Marginal Approach for Efficient Monte Carlo Computations* (Andrieu and Roberts 2009)](https:://doi.org/10.1214/07-AOS574)
+
 
 # Stochastic volatility example
 
 Here's a common SMC example, following Pitt and Shephard (1999). The idea is that financial time series often have time-varying variability that is of interest to financial folks.
 
-Let $r_t$ be the exchange rate at time $t$ and $y_t$ be 100 times the daily log return of the exchange rate, $y_t = 100 (\log(r_t) - \log(r_{t-1}))$. A standard stochastic volatility model is
+Let $r_t$ be the exchange rate at time $t$ and $y_t$ be the daily log return of the exchange rate, $y_t = (\log(r_t) - \log(r_{t-1}))$. A standard stochastic volatility model is
 
-$$ y_t = \epsilon_t \beta \exp\left(\frac{x_t}{2}\right), $$
-$$ \epsilon_t \sim N(0,1)$$
-$$ x_t = \phi x_{t-1} + \nu_t$$
-$$ \nu_t \sim N(0, \sigma^2) $$
+$$ y_t \sim N\left(0, \left( \beta \exp\left(\frac{x_t}{2}\right)\right)^2\right), $$
+
+$$ x_t \sim N(\phi x_{t-1}, \sigma^2) $$
+
 
 Here $\beta$ is the constant volatility while $x_t$ is the latent evolving volatility. 
 
@@ -107,27 +141,57 @@ For our basic SMC implementation we'll take $\beta$, $\sigma^2$, and $\phi$ to b
 
 ```{r, sv-code}
 stochVolCode <- nimbleCode({
-  x[1] ~ dnorm(phi * x0, sd = sigma)
-  y[1] ~ dnorm(0, var = betaSquared * exp(x[1]))
+  x[1] ~ dnorm(0, sd = sigma / sqrt(1-phi*phi))
+  y[1] ~ dnorm(0, sd = beta * exp(0.5*x[1]))
   for(t in 2:T){
         ## time-evolving volatility
         x[t] ~ dnorm(phi * x[t-1], sd = sigma)
         ## observations
-        y[t] ~ dnorm(0, var = betaSquared * exp(x[t]))
+        y[t] ~ dnorm(0, sd = beta * exp(0.5*x[t]))
   }
-  x0 ~ dnorm(1, sd = sigma)
   phi <- 2 * phiStar - 1
-  phiStar ~ dbeta(18, 1)
-  sigma ~ T(dt(mu = 0, sigma = 1, df = 1), 0, )
-  ## baseline volatility
-  betaSquared <- beta^2
-  beta ~ T(dt(mu = 0, sigma = 1, df = 1), 0, )
+  phiStar ~ dbeta(20, 1.1)
+  logsigma2 ~ dgammalog(shape = 0.5, rate = 1/(2*0.1)) ## This is Omega
+  sigma <- exp(0.5*logsigma2)
+  mu ~ dnorm(-10, sd = 1) 
+  beta <- exp(0.5*mu)
 })
+
+dgammalog <- nimbleFunction(
+  run = function(x = double(), shape = double(),
+                 rate = double(),log = integer(0, default = 0)) {
+    logProb <- shape * log(rate) + shape * x - rate * exp(x) - lgamma(shape)
+    if(log) return(logProb)
+    else return(exp(logProb))
+    returnType(double())
+  }
+)
+
+rgammalog <- nimbleFunction(
+  run = function(n = integer(),
+                 shape = double(), rate = double()) {
+    xg <- rgamma(1, shape = shape, rate = rate)
+    return(log(xg))
+    returnType(double())
+  }
+)
 ```
+
+```{r, include=FALSE}
+# only needed for Rmd compilation; not needed for regular usage.
+assign('dgammalog', dgammalog, .GlobalEnv)
+assign('rgammalog', rgammalog, .GlobalEnv)
+```
+
+See our [arXiv paper](https://arxiv.org/pdf/1703.06206.pdf) (to appear in Journal of Statistical Software) for discussion of the priors and transformations above.
+
+The `dgammalog` distribution is the opposite of the log-gamma distribution. 
 
 # Stochastic volatility filtering
 
 Now let's create the model and apply and run a bootstrap filter.
+
+We use as data the exchange rates for the Euro (EUR) quoted in U.S. Dollars (USD) starting after January 1st, 2010, and continuing until the end of the time-series, 582 days after that.
 
 ```{r, sv-model}
 library("stochvol")
@@ -136,9 +200,9 @@ y <- logret(exrates$USD[exrates$date > '2010-01-01'], demean = TRUE)
 TT <- length(y)
 
 stochVolModel <- nimbleModel(code = stochVolCode,
-   constants = list(T = TT), data = list(y = y),
-   inits = list(beta = .5992, phi = .9702,
-   sigma = .178, x0 = 0))
+                             constants = list(T = TT), data = list(y = y),
+                             inits = list(mu = -10, phiStar = .99,
+                                          logsigma2 = log(.004)))
 CstochVolModel <- compileNimble(stochVolModel)
 ```
 
@@ -181,13 +245,13 @@ The overall filtering nimbleFunction simply iterates through each individual tim
 The bootstrap filter created a list of nimbleFunctions, one for each time step. Here's what the code in the overall bootstrap filter nimbleFunction setup code looks like:
 
 ```{r, nimbleFunctionLists, eval=FALSE}
-    bootStepFunctions <- nimbleFunctionList(bootStepVirtual)
-    for(iNode in seq_along(nodes)){
-       bootStepFunctions[[iNode]] <- bootFStep(model, mvEWSamples, mvWSamples,
-                                              nodes, iNode, names, saveAll,
-                                              smoothing, resamplingMethod,
-                                              silent) 
-    }
+bootStepFunctions <- nimbleFunctionList(bootStepVirtual)
+for(iNode in seq_along(nodes)){
+  bootStepFunctions[[iNode]] <- bootFStep(model, mvEWSamples, mvWSamples,
+                                          nodes, iNode, names, saveAll,
+                                          smoothing, resamplingMethod,
+                                          silent) 
+}
 ```
 
 The key steps are:
@@ -222,28 +286,31 @@ We'll look directly at the PMCMC code in [`pmcmc_samplers.R`](pmcmc_samplers.R),
 The setup code creates a filtering algorithm, and then the run code runs it under the proposed hyperparameter values and uses the likelihood approximation in the Metropolis-Hastings acceptance calculation.
 
 
-# Stochastic volatility example revisited
-
-```{r, sv-code}
-```
-
-```{r, sv-model}
-```
-
 # Stochastic volatility, particle MCMC
 
 ```{r, sv-pmcmc}
-stochVolConf <- configureMCMC(stochVolModel, nodes = NULL,
-    monitors = c('beta', 'phi', 'sigma' , 'x'))
-stochVolConf$addSampler(target = c('beta', 'phiStar', 'sigma' , 'x0'),
-                               type = 'RW_PF_block', control = list(propCov = .1 * diag(4),
-                               pfType = 'auxiliary', pfControl = list(thresh = 1),
-                               adaptive = TRUE, pfNparticles = 200,
-                               latents = 'x', pfResample = TRUE))
-                               
-stochVolMCMC <- buildMCMC(stochVolConf)
+stochVolMCMCConf <- configureMCMC(stochVolModel, nodes = NULL,
+                              monitors = c('mu', 'beta', 'phiStar', 
+                                           'phi', 'logsigma2', 'sigma'))
+
+auxpf <- buildAuxiliaryFilter(stochVolModel, 'x', 
+                              control = list(saveAll = FALSE, 
+                                             smoothing = FALSE,
+                                             initModel = FALSE))
+h <- 1
+propSD <- h * c(0.089, 0.039, 1.45)
+m <- 200
+stochVolMCMCConf$addSampler(target = c('mu', 'phiStar', 'logsigma2'),
+                            type = 'RW_PF_block',
+                            control = list(propCov = diag(propSD^2),
+                                           pf = 'auxiliary',
+                                           adaptive = TRUE,
+                                           pfNparticles = m,
+                                           latents = 'x'))
+
+stochVolMCMC <- buildMCMC(stochVolMCMCConf)
 cMCMC <- compileNimble(stochVolMCMC, project = stochVolModel, resetFunctions = TRUE)
-samples <- runMCMC(cMCMC, niter = 5000)
+samples <- runMCMC(cMCMC, 5000)		       
 ```
 
 # Stochastic volatility, particle MCMC results
@@ -264,15 +331,31 @@ ts.plot(samples[ , 'sigma'])
 
 We can also consider trying to use maximum likelihood to estimate the (hyper)parameters. 
 
-Given the integration of the volatility process is not possible analytically:
+Given the integration of the volatility process is not possible analytically, there are two potential approaches in NIMBLE:
+
   - MCEM (use MCMC to approximate the required expectation in the EM algorithm)
-  - IF2 SMC-based approach
+  - IF2 SMC-based approach (not shown here)
   
 # MCEM 
 
-FIXME: finish
+ - Recall that the EM algorithm maximizes the expected log likelihood, where the expectation is over the 'missing data'.
+ - If that expectation can't be done in closed form, we need a way to estimate it.
+ - MCMC is one way - it's an MCMC over the 'missing data' given the current values of parameters we are maximixing with respect to.
+ - Given NIMBLE's MCMC engine, this is a natural 'hybrid' algorithm for NIMBLE to be a good platform for.
+ - Some hurdles:
+    - When to stop?
+    - How many MCMC iterations at each step; how much burn-in?
+    - Can be quite slow because of the MCMC and often slow convergence of EM generally.
 
-# IF2
+Caffo et al. (2005) Ascent-based MCEM helps to address stopping and determination of MCMC steps in an adaptive fashion.
 
-FIXME: finish
+# MCEM in practice
+
+```{r}
+stochVolMCEM <- buildMCEM(stochVolModel, burnIn = 200, latentNodes = 'x')
+MLEs <- stochVolMCEM$run(initM = 1000)
+MLEs
+```
+
+Note that some of the parameters have bounded domains. NIMBLE's MCEM will attempt to figure that out, but you may also want to set the parameter constraints manually. 
 
