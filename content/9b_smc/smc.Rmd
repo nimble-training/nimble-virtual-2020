@@ -357,5 +357,10 @@ MLEs <- stochVolMCEM$run(initM = 1000)
 MLEs
 ```
 
+When we were exploring this model, we realized that there is not a lot of information in the data to estimate the parameters, so there are some shortcomings to using this example with MCEM. But it does illustrate the idea and usage.
+
 Note that some of the parameters have bounded domains. NIMBLE's MCEM will attempt to figure that out, but you may also want to set the parameter constraints manually. 
 
+# buildMCEM code
+
+`buildMCEM` is actually just a function, not a nimbleFunction (but the MCMC that is used is a compiled NIMBLE MCMC). The reason for this is that the heavy computation is in the MCMC, so running the overall EM iterations in R does not slow things down.
