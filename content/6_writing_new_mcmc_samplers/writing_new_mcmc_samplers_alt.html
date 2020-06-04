@@ -197,7 +197,7 @@ slides > slide {
 <li>Design of NIMBLE’s MCMC system</li>
 <li>Two-stage evaluation of nimbleFunctions with setup code.</li>
 <li>Setting up a new sampler: A simple Metropolis-Hastings example</li>
-<li>Worked example: auto-centering slope-intercept sampler.</li>
+<li>Worked example: sampler that jointly updates intercepts and random effects in the E. cervi example.</li>
 </ol>
 </div>
 <div id="load-deer-e.-cervi-example" class="section level1">
@@ -453,7 +453,7 @@ calcDeps_farm1$run()</code></pre>
 <li>They should work the same way compiled and uncompiled.</li>
 </ul></li>
 <li>MCMC output is stored in a <code>modelValues</code> object (called <code>mvSamples</code>).</li>
-<li>Each <code>modelValues</code> class comes from a configuration of what variables are needed (and their types ans sizes).
+<li>Each <code>modelValues</code> class comes from a configuration of what variables are needed (and their types and sizes).
 <ul>
 <li>Typically the configuration is generated from a model or from variables monitored in MCMC.</li>
 <li>(Actually, one can hand-configure a <code>modelValues</code> in any way one wants.)</li>
@@ -598,6 +598,219 @@ mcmc$run(5)</code></pre>
                     type = ourSampler,
                     control = list(offsetNodes = 'farm_effect'))
 mcmc &lt;- buildMCMC(mcmcConf)</code></pre>
+</div>
+<div id="live-in-session-code" class="section level1">
+<h1>Live in-session code</h1>
+<p>Questions arose about accessing compiled internals. Here is code from an on-the-fly example.</p>
+<pre class="r"><code>## Make compiled model
+cDEmodel &lt;- compileNimble(DEmodel)</code></pre>
+<pre><code>## compiling... this may take a minute. Use 'showCompilerOutput = TRUE' to see C++ compilation details.</code></pre>
+<pre><code>## compilation finished.</code></pre>
+<pre class="r"><code>## Set internal option to access compiled samplers inside of compiled mcmc below
+nimbleOptions(buildInterfacesForCompiledNestedNimbleFunctions = TRUE)
+## Compile the MCMC
+cmcmc &lt;- compileNimble(mcmc)</code></pre>
+<pre><code>## compiling... this may take a minute. Use 'showCompilerOutput = TRUE' to see C++ compilation details.
+## compilation finished.</code></pre>
+<pre class="r"><code>## See that the run function is an interface to compiled code via .Call
+cmcmc$run</code></pre>
+<pre><code>## Class method definition for method run()
+## function (niter, reset = TRUE, time = FALSE, progressBar = TRUE, 
+##     nburnin = 0, thin = -1, thin2 = -1) 
+## {
+##     if (is.null(&quot;.basePtr&quot;)) 
+##         stop(&quot;Object for calling this function is NULL (may have been cleared)&quot;)
+##     ans &lt;- .Call(&quot;CALL_MCMC_run&quot;, niter, reset, time, progressBar, 
+##         nburnin, thin, thin2, .basePtr)
+##     ans &lt;- invisible(NULL)
+##     ans
+## }
+## &lt;environment: 0x7fe1a743e5a8&gt;</code></pre>
+<pre class="r"><code>## See where our sampler of interest is in the sampler configuration list
+mcmcConf$printSamplers()</code></pre>
+<pre><code>## [1]  RW sampler: sex_int[1]
+## [2]  RW sampler: sex_int[2]
+## [3]  RW sampler: length_coef[1]
+## [4]  RW sampler: length_coef[2]
+## [5]  RW sampler: farm_sd
+## [6]  RW sampler: farm_effect[1]
+## [7]  RW sampler: farm_effect[2]
+## [8]  RW sampler: farm_effect[3]
+## [9]  RW sampler: farm_effect[4]
+## [10] RW sampler: farm_effect[5]
+## [11] RW sampler: farm_effect[6]
+## [12] RW sampler: farm_effect[7]
+## [13] RW sampler: farm_effect[8]
+## [14] RW sampler: farm_effect[9]
+## [15] RW sampler: farm_effect[10]
+## [16] RW sampler: farm_effect[11]
+## [17] RW sampler: farm_effect[12]
+## [18] RW sampler: farm_effect[13]
+## [19] RW sampler: farm_effect[14]
+## [20] RW sampler: farm_effect[15]
+## [21] RW sampler: farm_effect[16]
+## [22] RW sampler: farm_effect[17]
+## [23] RW sampler: farm_effect[18]
+## [24] RW sampler: farm_effect[19]
+## [25] RW sampler: farm_effect[20]
+## [26] RW sampler: farm_effect[21]
+## [27] RW sampler: farm_effect[22]
+## [28] RW sampler: farm_effect[23]
+## [29] RW sampler: farm_effect[24]
+## [30] ourSampler sampler: sex_int,  offsetNodes: farm_effect</code></pre>
+<pre class="r"><code>## And see that the built and compiled samplerFunctions are in the same order
+cmcmc$samplerFunctions</code></pre>
+<pre><code>## Reference class object of class &quot;nimPointerList&quot;
+## Field &quot;contentsList&quot;:
+## [[1]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[2]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[3]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[4]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[5]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[6]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[7]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[8]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[9]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[10]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[11]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[12]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[13]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[14]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[15]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[16]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[17]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[18]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[19]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[20]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[21]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[22]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[23]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[24]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[25]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[26]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[27]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[28]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[29]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class sampler_RW
+## 
+## [[30]]
+## Derived CnimbleFunctionBase object (compiled nimbleFunction) for nimbleFunction with class ourSampler
+## 
+## Field &quot;baseClass&quot;:
+## function () 
+## {
+## }
+## &lt;bytecode: 0x7fe1afd99090&gt;
+## &lt;environment: 0x7fe1b5a05c08&gt;
+## Field &quot;CobjectInterface&quot;:
+## An object of class &quot;uninitializedField&quot;
+## Slot &quot;field&quot;:
+## [1] &quot;CobjectInterface&quot;
+## 
+## Slot &quot;className&quot;:
+## [1] &quot;ANY&quot;</code></pre>
+<pre class="r"><code>## Run the MCMC (could use runMCMC(cmcmc, ...) instead, but time=TRUE is not available via runMCMC)
+cmcmc$run(niter = 1000, time = TRUE)</code></pre>
+<pre><code>## |-------------|-------------|-------------|-------------|
+## |-------------------------------------------------------|</code></pre>
+<pre><code>## NULL</code></pre>
+<pre class="r"><code>## Access various internals.  Note that some of these have been reset after adaptation steps.
+cmcmc$samplerFunctions[[30]]$timesAdapted</code></pre>
+<pre><code>## [1] 50</code></pre>
+<pre class="r"><code>cmcmc$samplerFunctions[[30]]$timesAccepted</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>cmcmc$samplerFunctions[[30]]$scale</code></pre>
+<pre><code>## [1] 1.047384</code></pre>
+<pre class="r"><code>cmcmc$samplerFunctions[[30]]$timesRan</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>## Look at farm_effect in the compiled model
+cDEmodel$farm_effect</code></pre>
+<pre><code>##  [1] -1.3986635  0.5831201  2.1348928  5.1591648  0.4442261 -1.8870550
+##  [7] -2.4172795  1.2096818 -0.9645179  1.8349744 -1.2161726 -0.6664432
+## [13]  0.3014419  1.3625707  1.8452645  1.5972765 -1.4476115  2.1951300
+## [19] -1.5817364  0.7332554  0.8374438  0.4342952  1.5218365  1.6410200</code></pre>
+<pre class="r"><code>## Run our sampler 100 times
+for(i in 1:100) cmcmc$samplerFunctions[[30]]$run()
+## See if there were any updates
+cDEmodel$farm_effect</code></pre>
+<pre><code>##  [1] -2.33276207 -0.35097844  1.20079425  4.22506624 -0.48987250 -2.82115363
+##  [7] -3.35137812  0.27558318 -1.89861647  0.90087584 -2.15027114 -1.60054182
+## [13] -0.63265671  0.42847210  0.91116588  0.66317792 -2.38171005  1.26103144
+## [19] -2.51583503 -0.20084315 -0.09665476 -0.49980336  0.58773787  0.70692142</code></pre>
+<pre class="r"><code>## See how to look at the mvSaved object from the compiled MCMC
+## (There are more direct ways to access values in mvSaved. See modelValues
+## documentation.)
+## This would show the full object: as.matrix(cmcmc$mvSaved)
+## This is what I was looking for in the live session:
+cmcmc$mvSaved[['farm_effect']]</code></pre>
+<pre><code>##  [1] -2.33276207 -0.35097844  1.20079425  4.22506624 -0.48987250 -2.82115363
+##  [7] -3.35137812  0.27558318 -1.89861647  0.90087584 -2.15027114 -1.60054182
+## [13] -0.63265671  0.42847210  0.91116588  0.66317792 -2.38171005  1.26103144
+## [19] -2.51583503 -0.20084315 -0.09665476 -0.49980336  0.58773787  0.70692142</code></pre>
+<pre class="r"><code>## See time spent in each sampler (this will not include the 100 iterations
+## we did &quot;by hand&quot;, only iterations via cmcmc$run(), or runMCMC, which calls
+## cmcmc$run).
+cmcmc$getTimes()</code></pre>
+<pre><code>##  [1] 0.058566 0.046916 0.059739 0.045755 0.002836 0.002921 0.005358 0.007322
+##  [9] 0.002724 0.010807 0.001312 0.003472 0.005414 0.004385 0.006617 0.024715
+## [17] 0.004462 0.003371 0.005539 0.008253 0.003484 0.003817 0.004680 0.001329
+## [25] 0.003961 0.003446 0.003913 0.002661 0.002585 0.115058</code></pre>
 </div>
 <div id="lets-make-an-interesting-sampler-4" class="section level1">
 <h1>Let’s make an interesting sampler (4)</h1>
