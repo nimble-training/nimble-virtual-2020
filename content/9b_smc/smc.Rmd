@@ -367,7 +367,8 @@ stochVolModel2 <- stochVolModel$newModel(replicate = TRUE)   # set up a new mode
 
 ## what are the initial values? We'll change them to be further away from the posteriorm means to see what we can see aboug convergence.
 params <- stochVolModel2$getNodeNames(topOnly = TRUE)
-values(stochVolMode2l, params)
+print(params)
+values(stochVolModel2, params)
 stochVolModel2$mu <- -9
 stochVolModel2$phiStar <- 0.8
 stochVolModel2$logsigma2 <- -6
