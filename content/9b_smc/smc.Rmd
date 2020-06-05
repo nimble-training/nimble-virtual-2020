@@ -30,8 +30,8 @@ Material here is based on a paper that will appear in Journal of Statistical Sof
 
 Sequential Monte Carlo is a family of algorithms for iteratively sampling from a posterior distribution generally in state-space style models:
 
-$$ y_t \sim g_t(y_t | x_t, \theta)$$
-$$ x_t \sim f_t(x_t | x_{t-1}, \theta) $$ 
+$$ y_t \sim g_t(y_t | x_t, \theta), t = 1,\ldots,T$$
+$$ x_t \sim f_t(x_t | x_{t-1}, \theta), t = 1,\ldots,T $$ 
 
 Some goals in analyzing such models include:
 
@@ -73,6 +73,8 @@ Here's pseudo-code for the bootstrap filter, where
 
 Graphically, one might think of it this way:
 
+(Apology - the 'k' here in the figure's notation is time 't' in my notation.)
+
 <center><img src="pf.png"></center>
 
 # Improving particle filtering
@@ -95,7 +97,7 @@ The original particle filter of [Gordon et al. (1993)](https://doi.org/10.1049/i
 
 A fundamental improvement is due to [Pitt and Shephard (1999)](https://www.tandfonline.com/doi/abs/10.1080/01621459.1999.10474153).  They use:
 
-- For each $x_{t-1}$ sample, make initial forward trial by any desired method (simulation from $f_t(x_t | x_{t-1}, \theta)$, mean prediction, or other).
+- For each $x_{t-1}^(k)$ sample, make initial forward trial by any desired method (simulation from $f_t(x_t | x_{t-1}, \theta)$, mean prediction, or other).
 - Make preliminary weights based on closeness of each trial to data $y_t$.
 - Resample $x_{t-1}$ based on initial trials.
 - Use bootstrap filter (or other) from the resampled $x_{t-1}$.
@@ -361,18 +363,19 @@ Caffo et al. (2005) Ascent-based MCEM helps to address stopping and determinatio
 ## For real usage, you'd probably want to run a test MCMC sampling just 'x' given your 
 ## your initial parameter values to check if the burnin is sufficient.
 ## C=0.01 relaxes the convergence criterion for faster usage in this demo.
-stochVolMCEM <- buildMCEM(CstochVolModel, burnIn = 200, latentNodes = 'x', C = 0.01)
+stochVolModel2 <- stochVolModel$newModel(replicate = TRUE)   # set up a new model just to be cautious
 
 ## what are the initial values? We'll change them to be further away from the posteriorm means to see what we can see aboug convergence.
-params <- stochVolModel$getNodeNames(topOnly = TRUE)
-values(CstochVolModel, params)
-CstochVolModel$mu <- -9
-CstochVolModel$phiStar <- 0.8
-CstochVolModel$logsigma2 <- -6
+params <- stochVolModel2$getNodeNames(topOnly = TRUE)
+values(stochVolMode2l, params)
+stochVolModel2$mu <- -9
+stochVolModel2$phiStar <- 0.8
+stochVolModel2$logsigma2 <- -6
+
+stochVolMCEM <- buildMCEM(stochVolModel2, burnIn = 200, latentNodes = 'x', C = 0.01)
 MLEs <- stochVolMCEM$run(initM = 1000)
 MLEs
 ```
-
 
 When we were exploring this model as part of our work for our JSS paper on SMC, we realized that there is not a lot of information in the data to estimate the parameters via maximum likelihood, so there are some shortcomings to using this example with MCEM. But it does illustrate the idea and usage.
 
