@@ -289,21 +289,26 @@ The setup code creates a filtering algorithm, and then the run code runs it unde
 # Stochastic volatility, particle MCMC
 
 ```{r, sv-pmcmc}
+# `nodes=NULL` sets up a configuration with NO samplers
 stochVolMCMCConf <- configureMCMC(stochVolModel, nodes = NULL,
                               monitors = c('mu', 'beta', 'phiStar', 
                                            'phi', 'logsigma2', 'sigma'))
 
-auxpf <- buildAuxiliaryFilter(stochVolModel, 'x', 
-                              control = list(saveAll = FALSE, 
-                                             smoothing = FALSE,
-                                             initModel = FALSE))
+if(FALSE) {
+  # one can build one own's particle filter and then provide it as control$pf
+  auxpf <- buildAuxiliaryFilter(stochVolModel, 'x', 
+                                control = list(saveAll = FALSE, 
+                                               smoothing = FALSE,
+                                               initModel = FALSE))
+}
+
 h <- 1
 propSD <- h * c(0.089, 0.039, 1.45)
 m <- 200
 stochVolMCMCConf$addSampler(target = c('mu', 'phiStar', 'logsigma2'),
                             type = 'RW_PF_block',
                             control = list(propCov = diag(propSD^2),
-                                           pf = 'auxiliary',
+                                           pfType = 'auxiliary',
                                            adaptive = TRUE,
                                            pfNparticles = m,
                                            latents = 'x'))
@@ -319,12 +324,13 @@ It looks like the MCMC worked somewhat well.
 
 ```{r, sv-pmcmc-results, fig.width=12, fig.height=8, fig.cap=''}
 par(mfrow = c(2, 3))
-hist(samples[ , 'beta'])
-hist(samples[ , 'phi'])
-hist(samples[ , 'sigma'])
-ts.plot(samples[ , 'beta'])
-ts.plot(samples[ , 'phi'])
-ts.plot(samples[ , 'sigma'])
+ts.plot(samples[ , 'beta'], main = 'beta')
+ts.plot(samples[ , 'phi'], main = 'phi')
+ts.plot(samples[ , 'sigma'], main = 'sigma')
+## posteriors on scale of fixed values used in filtering earlier
+hist(samples[ , 'mu'])           # fixed value was -10
+hist(samples[ , 'phiStar'])      # fixed value was 0.99
+hist(samples[ , 'logsigma2'])    # fixed value was -5.5
 ```
 
 # Maximum likelihood for the stochastic volatility example
@@ -334,7 +340,7 @@ We can also consider trying to use maximum likelihood to estimate the (hyper)par
 Given the integration of the volatility process is not possible analytically, there are two potential approaches in NIMBLE:
 
   - MCEM (use MCMC to approximate the required expectation in the EM algorithm)
-  - IF2 SMC-based approach (not shown here)
+  - IF2 SMC-based approach (not shown here; please see the arXiv preprint for our JSS paper)
   
 # MCEM 
 
@@ -352,12 +358,23 @@ Caffo et al. (2005) Ascent-based MCEM helps to address stopping and determinatio
 # MCEM in practice
 
 ```{r}
-stochVolMCEM <- buildMCEM(stochVolModel, burnIn = 200, latentNodes = 'x')
+## For real usage, you'd probably want to run a test MCMC sampling just 'x' given your 
+## your initial parameter values to check if the burnin is sufficient.
+## C=0.01 relaxes the convergence criterion for faster usage in this demo.
+stochVolMCEM <- buildMCEM(CstochVolModel, burnIn = 200, latentNodes = 'x', C = 0.01)
+
+## what are the initial values? We'll change them to be further away from the posteriorm means to see what we can see aboug convergence.
+params <- stochVolModel$getNodeNames(topOnly = TRUE)
+values(CstochVolModel, params)
+CstochVolModel$mu <- -9
+CstochVolModel$phiStar <- 0.8
+CstochVolModel$logsigma2 <- -6
 MLEs <- stochVolMCEM$run(initM = 1000)
 MLEs
 ```
 
-When we were exploring this model, we realized that there is not a lot of information in the data to estimate the parameters, so there are some shortcomings to using this example with MCEM. But it does illustrate the idea and usage.
+
+When we were exploring this model as part of our work for our JSS paper on SMC, we realized that there is not a lot of information in the data to estimate the parameters via maximum likelihood, so there are some shortcomings to using this example with MCEM. But it does illustrate the idea and usage.
 
 Note that some of the parameters have bounded domains. NIMBLE's MCEM will attempt to figure that out, but you may also want to set the parameter constraints manually. 
 
