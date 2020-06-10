@@ -445,7 +445,7 @@ conf$addSampler('x[1:134]', 'RW_block', control = list(adaptFactorExponent = 0.2
 
 MCMC <- buildMCMC(conf)
 cMCMC <- compileNimble(MCMC, project = cModel)
-samples <- runMCMC(cMCMC, niter = 30000, nburnin = 5000, thin = 25)
+samples <- runMCMC(cMCMC, niter = 10000, nburnin = 5000, thin = 25)
 ```
 
 Note that mixing in this model is somewhat slow, because of the need to explore the correlated spatial process, `x`, which is generally less effective in non-conjugate settings, such as this one, where the observations are Poisson and the prior for the latent process is normal.
@@ -658,33 +658,50 @@ dist22 <- fields::rdist(newlocs)
 ```{r, eval=FALSE}
 sample_xstar <- nimbleFunction({
   # need types for inputs
-  run = function(x, mu, sigma, rho, dist11, dist22, dist21) {
-    # returnType(???)
-    # insert code to take a sample given equation above
+  run = function(x = double(1), mu = double(1), muNew = double(1), sigma = double(0), rho = double(0), 
+                 dist11 = double(2), dist22 = double(2), dist21 = double(2)) {
+    returnType(double(1))
+    n <- length(muNew)
+    sigma2 <- sigma*sigma
+    C22 <- sigma2 * exp(-dist22 / rho)
+    C11 <- sigma2 * exp(-dist11 / rho)
+    C21 <- sigma2 * exp(-dist21 / rho)
+    # Note that this could be made a bit more efficient by using the Cholesky
+    # decomposition rather than solve().
+    xstar <- munew + (C21 %*% solve(C11, x - mu))[,1]
+    xstar <- xstar + (t(chol(C22 - C21 %*% solve(C11, t(C21)))) %*% rnorm(n))[,1]
+    return(xstar)
   }
 })
 
 get_samples <- nimbleFunction(
-  # need types for inputs
-  run = function(samples, dist11, dist22, dist21) {
-    # returnType(???)
+  run = function(samples = double(2), z = double(1), zNew = double(1), 
+                 dist11 = double(2), dist22 = double(2), dist21 = double(2)) {
+    returnType(double(2))
     m <- dim(samples)[1]
-    # nstar <- ???
+    nstar <- dim(dst21)[2]
     output <- matrix(0, nrow = m, ncol = nstar)
-    for(i in 1:n) {
-      # Extract parameter values from the input matrix based on numeric column indexes
-      mu <- output[i, 1]
+    for(i in 1:m) {
+      # Extract parameter values from the input matrix based on numeric column indexes.
+      # Inelegant because hard-coded based on looking at column names of samples matrix.
+      mu0 <- output[i, 2]
+      beta <- output[i, 1]
+      rho <- output[i, 3]
+      sigma <- output[i, 4]
+      x <- output[i, 5:138]
+      mu <- mu0 + beta*z
+      muNew <- mu0 + beta*zNew
       # Get other parameters
-      output[i, ] <- sample_xstar(x, mu, sigma, rho, dist11, dist22, dist21)
+      output[i, ] <- sample_xstar(x, mu, muNew, sigma, rho, dist11, dist22, dist21)
     }
     return(output)
   }
 )
 
 ## Now compare uncompiled and compiled speed of carrying out the sampling.
-xstar_samples <- get_samples(samples, dist11, dist22, dist21)
+xstar_samples <- get_samples(samples, z, zNew, dist11, dist22, dist21)
 cget_samples <- compileNimble(get_samples)
-xstar_samples2 <- cget_samples(samples, dist11, dist22, dist21)
+xstar_samples2 <- cget_samples(samples, z, Znew, dist11, dist22, dist21)
 ```
 
 We could also write this to use the `mvSamples` modelValues object that stores all the MCMC output instead of using the R matrix representation of the samples.
